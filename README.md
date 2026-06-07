@@ -27,7 +27,7 @@ uv sync
   "mcpServers": {
     "novelai": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/novelai-mcp", "novelai-mcp"],
+      "args": ["run", "--from", "git+https://github.com/syou6162/novelai-mcp", "novelai-mcp"],
       "env": {
         "NOVELAI_API_KEY": "your-api-key",
         "NOVELAI_OUTPUT_DIR": "/path/to/output"
