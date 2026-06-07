@@ -49,6 +49,28 @@ class TestLoadParamsFromFile:
         with pytest.raises(json.JSONDecodeError):
             load_params_from_file(str(params_file))
 
+    def test_meta_field_passthrough(self, tmp_path: Path) -> None:
+        """metaフィールドに任意のメタデータを載せられること"""
+        data = _valid_params_dict()
+        data["meta"] = {"slack": {"thread_ts": "1780866984.194829"}}
+        params_file = tmp_path / "params_with_meta.json"
+        params_file.write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_params_from_file(str(params_file))
+
+        assert result.description == "テスト画像"
+        assert result.meta == {"slack": {"thread_ts": "1780866984.194829"}}
+
+    def test_top_level_slack_rejected(self, tmp_path: Path) -> None:
+        """トップレベルのslackフィールドはバリデーションエラー"""
+        data = _valid_params_dict()
+        data["slack"] = {"thread_ts": "1780866984.194829"}
+        params_file = tmp_path / "params_with_slack.json"
+        params_file.write_text(json.dumps(data), encoding="utf-8")
+
+        with pytest.raises(ValidationError, match="(?i)extra"):
+            load_params_from_file(str(params_file))
+
     def test_validation_error(self, tmp_path: Path) -> None:
         """バリデーションエラーの場合"""
         params_file = tmp_path / "invalid_params.json"

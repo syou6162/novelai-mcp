@@ -227,6 +227,27 @@ class TestNovelAIParams:
                 unknown_field="value",  # type: ignore[call-arg]
             )
 
+    def test_meta_field_accepted(self) -> None:
+        """metaフィールドに任意のメタデータを載せられる"""
+        params = NovelAIParams(
+            description="テスト",
+            prompt="1girl, solo",
+            negative_prompt=_NEGATIVE_PROMPT,
+            characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+            meta={"slack": {"thread_ts": "1780866984.194829"}},
+        )
+        assert params.meta == {"slack": {"thread_ts": "1780866984.194829"}}
+
+    def test_meta_field_default_none(self) -> None:
+        """metaフィールドはデフォルトでNone"""
+        params = NovelAIParams(
+            description="テスト",
+            prompt="1girl, solo",
+            negative_prompt=_NEGATIVE_PROMPT,
+            characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+        )
+        assert params.meta is None
+
     def test_with_reference_images(self) -> None:
         """参照画像付きパラメータ"""
         params = NovelAIParams(
