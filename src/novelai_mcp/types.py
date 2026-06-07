@@ -131,3 +131,18 @@ class NovelAIParams(BaseModel):
         return v
 
     model_config = {"extra": "forbid"}
+
+
+class GenerateImageResult(BaseModel):
+    """generate_image ツールの結果"""
+
+    image_paths: list[str] = Field(description="生成された画像ファイルパスのリスト")
+    params_file: str = Field(description="保存されたパラメータJSONファイルのパス")
+    count: int = Field(description="生成された画像の枚数")
+
+
+class CleanupResult(BaseModel):
+    """cleanup_old_image_files ツールの結果"""
+
+    deleted_images: int = Field(description="削除された画像ファイルの件数")
+    deleted_jsons: int = Field(description="削除されたJSONファイルの件数")
