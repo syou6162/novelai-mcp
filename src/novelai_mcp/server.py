@@ -21,7 +21,8 @@ from novelai_mcp.types import NovelAIParams
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path(os.environ["NOVELAI_OUTPUT_DIR"])
+def _get_output_dir() -> Path:
+    return Path(os.environ["NOVELAI_OUTPUT_DIR"])
 
 # レート制限対策
 _generation_lock = asyncio.Lock()
@@ -122,7 +123,8 @@ def _resolve_params(params_file: str | None, kwargs: dict[str, Any]) -> NovelAIP
 
 async def _run_generation(params: NovelAIParams) -> list[str]:
     """NovelAI API を呼び出して画像を生成し、保存パスのリストを返す"""
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir = _get_output_dir()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now(tz=ZoneInfo("Asia/Tokyo"))
     timestamp = now.strftime("%Y%m%d_%H%M%S")
@@ -142,13 +144,13 @@ async def _run_generation(params: NovelAIParams) -> list[str]:
         if not result:
             raise RuntimeError("画像が生成されませんでした")
 
-        output_path = OUTPUT_DIR / f"image_{timestamp}_{i + 1}.png"
+        output_path = output_dir / f"image_{timestamp}_{i + 1}.png"
         result[0].save(str(output_path))
         generated_paths.append(str(output_path))
         logger.info(f"画像保存: {output_path}")
 
     # パラメータJSONも保存
-    params_output = OUTPUT_DIR / f"params_{timestamp}.json"
+    params_output = output_dir / f"params_{timestamp}.json"
     params_output.write_text(params.model_dump_json(indent=2), encoding="utf-8")
 
     return generated_paths
@@ -211,7 +213,7 @@ async def cleanup_old_image_files(
     """
     now = datetime.now(tz=ZoneInfo("Asia/Tokyo"))
     deleted_images, deleted_jsons = cleanup_old_files(
-        OUTPUT_DIR,
+        _get_output_dir(),
         image_retention_days=image_retention_days,
         json_retention_days=json_retention_days,
         now=now,

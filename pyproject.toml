@@ -13,6 +13,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "ruff",
+    "ty",
 ]
 
 [project.scripts]

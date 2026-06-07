@@ -49,7 +49,7 @@ class TestGenerateImage:
         mock_client.image.generate.return_value = [mock_image]
 
         with (
-            patch("novelai_mcp.server.OUTPUT_DIR", output_dir),
+            patch("novelai_mcp.server._get_output_dir", return_value=output_dir),
             patch("novelai_mcp.server.NovelAI", return_value=mock_client),
             patch("novelai_mcp.server.DEFAULT_WAIT_SECONDS", 0),
         ):
@@ -73,7 +73,7 @@ class TestGenerateImage:
         mock_client.image.generate.return_value = [mock_image]
 
         with (
-            patch("novelai_mcp.server.OUTPUT_DIR", output_dir),
+            patch("novelai_mcp.server._get_output_dir", return_value=output_dir),
             patch("novelai_mcp.server.NovelAI", return_value=mock_client),
             patch("novelai_mcp.server.DEFAULT_WAIT_SECONDS", 0),
         ):
@@ -93,20 +93,18 @@ class TestGenerateImage:
     @pytest.mark.asyncio
     async def test_params_file_not_found(self) -> None:
         """params_fileが見つからない場合のエラー"""
-        with patch("novelai_mcp.server.OUTPUT_DIR", Path("/tmp/test_output")):
-            from novelai_mcp.server import generate_image
+        from novelai_mcp.server import generate_image
 
-            with pytest.raises(ValueError, match="パラメータファイルが見つかりません"):
-                await generate_image(params_file="/nonexistent/params.json")
+        with pytest.raises(ValueError, match="パラメータファイルが見つかりません"):
+            await generate_image(params_file="/nonexistent/params.json")
 
     @pytest.mark.asyncio
     async def test_no_args_raises_error(self) -> None:
         """params_fileも直接引数もない場合のエラー"""
-        with patch("novelai_mcp.server.OUTPUT_DIR", Path("/tmp/test_output")):
-            from novelai_mcp.server import generate_image
+        from novelai_mcp.server import generate_image
 
-            with pytest.raises(ValueError, match="params_file または直接引数のいずれかを指定してください"):
-                await generate_image()
+        with pytest.raises(ValueError, match="params_file または直接引数のいずれかを指定してください"):
+            await generate_image()
 
 
 class TestCleanupOldImageFiles:
@@ -118,7 +116,7 @@ class TestCleanupOldImageFiles:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch("novelai_mcp.server.OUTPUT_DIR", output_dir):
+        with patch("novelai_mcp.server._get_output_dir", return_value=output_dir):
             from novelai_mcp.server import cleanup_old_image_files
 
             result = await cleanup_old_image_files()
@@ -133,7 +131,7 @@ class TestCleanupOldImageFiles:
         old_image = output_dir / "image_20200101_120000_1.png"
         old_image.write_bytes(b"old")
 
-        with patch("novelai_mcp.server.OUTPUT_DIR", output_dir):
+        with patch("novelai_mcp.server._get_output_dir", return_value=output_dir):
             from novelai_mcp.server import cleanup_old_image_files
 
             result = await cleanup_old_image_files()
