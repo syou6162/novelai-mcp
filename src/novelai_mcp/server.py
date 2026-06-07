@@ -22,7 +22,11 @@ from novelai_mcp.types import NovelAIParams
 logger = logging.getLogger(__name__)
 
 def _get_output_dir() -> Path:
-    return Path(os.environ["NOVELAI_OUTPUT_DIR"])
+    val = os.environ.get("NOVELAI_OUTPUT_DIR")
+    if not val:
+        msg = "環境変数 NOVELAI_OUTPUT_DIR が設定されていません"
+        raise ValueError(msg)
+    return Path(val)
 
 # レート制限対策
 _generation_lock = asyncio.Lock()
