@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from novelai_mcp.types import CharacterParams, NovelAIParams
+from novelai_mcp.types import CharacterParams, CleanupResult, GenerateImageResult, NovelAIParams
 
 _NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, missing fingers, extra digits"
 
@@ -57,7 +57,10 @@ class TestGenerateImage:
 
             result = await generate_image(params_file=str(params_file))
 
-        assert result.startswith("1枚の画像を生成しました:")
+        assert isinstance(result, GenerateImageResult)
+        assert result.count == 1
+        assert len(result.image_paths) == 1
+        assert result.params_file.endswith(".json")
         mock_client.image.generate.assert_called_once()
         mock_image.save.assert_called_once()
 
@@ -87,7 +90,10 @@ class TestGenerateImage:
                 n_samples=1,
             )
 
-        assert result.startswith("1枚の画像を生成しました:")
+        assert isinstance(result, GenerateImageResult)
+        assert result.count == 1
+        assert len(result.image_paths) == 1
+        assert result.params_file.endswith(".json")
         mock_client.image.generate.assert_called_once()
 
     @pytest.mark.asyncio
@@ -121,7 +127,9 @@ class TestCleanupOldImageFiles:
 
             result = await cleanup_old_image_files()
 
-        assert result == "削除完了: 画像0件, JSON0件"
+        assert isinstance(result, CleanupResult)
+        assert result.deleted_images == 0
+        assert result.deleted_jsons == 0
 
     @pytest.mark.asyncio
     async def test_cleanup_with_old_files(self, tmp_path: Path) -> None:
@@ -136,5 +144,7 @@ class TestCleanupOldImageFiles:
 
             result = await cleanup_old_image_files()
 
-        assert result == "削除完了: 画像1件, JSON0件"
+        assert isinstance(result, CleanupResult)
+        assert result.deleted_images == 1
+        assert result.deleted_jsons == 0
         assert not old_image.exists()

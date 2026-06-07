@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from novelai_mcp.cleanup import cleanup_old_files
 from novelai_mcp.helpers import load_params_from_file
-from novelai_mcp.types import NovelAIParams
+from novelai_mcp.types import CleanupResult, GenerateImageResult, NovelAIParams
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +125,8 @@ def _resolve_params(params_file: str | None, kwargs: dict[str, Any]) -> NovelAIP
         raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
 
 
-async def _run_generation(params: NovelAIParams) -> list[str]:
-    """NovelAI API を呼び出して画像を生成し、保存パスのリストを返す"""
+async def _run_generation(params: NovelAIParams) -> tuple[list[str], str]:
+    """NovelAI API を呼び出して画像を生成し、(画像パスリスト, paramsファイルパス) を返す"""
     output_dir = _get_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -157,7 +157,7 @@ async def _run_generation(params: NovelAIParams) -> list[str]:
     params_output = output_dir / f"params_{timestamp}.json"
     params_output.write_text(params.model_dump_json(indent=2), encoding="utf-8")
 
-    return generated_paths
+    return generated_paths, str(params_output)
 
 
 @mcp.tool()
@@ -173,7 +173,7 @@ async def generate_image(  # noqa: PLR0913
     scale: float | None = None,
     n_samples: int | None = None,
     reference_images: list[dict[str, Any]] | None = None,
-) -> str:
+) -> GenerateImageResult:
     """NovelAIで画像を生成する。
 
     params_file（JSONファイルパス）または直接引数でパラメータを指定する。
@@ -193,19 +193,23 @@ async def generate_image(  # noqa: PLR0913
         reference_images: 参照画像設定（Vibe Transfer）
 
     Returns:
-        生成した画像ファイルパスのリスト（改行区切り）
+        GenerateImageResult: 生成結果（画像パス・パラメータファイル・枚数）
     """
     async with _generation_lock:
         params = _resolve_params(params_file, locals())
-        generated_paths = await _run_generation(params)
-        return f"{len(generated_paths)}枚の画像を生成しました:\n" + "\n".join(f"- {p}" for p in generated_paths)
+        generated_paths, params_file_path = await _run_generation(params)
+        return GenerateImageResult(
+            image_paths=generated_paths,
+            params_file=params_file_path,
+            count=len(generated_paths),
+        )
 
 
 @mcp.tool()
 async def cleanup_old_image_files(
     image_retention_days: int = 7,
     json_retention_days: int = 30,
-) -> str:
+) -> CleanupResult:
     """OUTPUT_DIR配下の古い画像・JSONファイルを削除する。
 
     Args:
@@ -213,7 +217,7 @@ async def cleanup_old_image_files(
         json_retention_days: JSONファイルの保持日数（デフォルト: 30）
 
     Returns:
-        削除件数のサマリー
+        CleanupResult: 削除件数（画像・JSON）
     """
     now = datetime.now(tz=ZoneInfo("Asia/Tokyo"))
     deleted_images, deleted_jsons = cleanup_old_files(
@@ -222,4 +226,7 @@ async def cleanup_old_image_files(
         json_retention_days=json_retention_days,
         now=now,
     )
-    return f"削除完了: 画像{deleted_images}件, JSON{deleted_jsons}件"
+    return CleanupResult(
+        deleted_images=deleted_images,
+        deleted_jsons=deleted_jsons,
+    )
