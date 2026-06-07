@@ -3,9 +3,9 @@ name = "novelai-mcp"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "novelai-sdk>=0.8.1",
-    "pydantic>=2.13",
-    "mcp>=1.0",
+    "novelai-sdk==0.9.1",
+    "pydantic==2.13.4",
+    "mcp==1.27.2",
 ]
 
 [dependency-groups]
