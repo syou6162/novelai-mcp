@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 # 必須ネガティブワード（全体のnegative_promptに含める）
@@ -119,6 +121,12 @@ class NovelAIParams(BaseModel):
     reference_images: list[ReferenceImageParams] | None = Field(
         default=None,
         description="参照画像設定（Vibe Transfer）。複数指定可",
+    )
+
+    # メタデータ（外部システムが任意のデータを載せられる）
+    meta: dict[str, Any] | None = Field(
+        default=None,
+        description="任意のメタデータ。画像生成には使用されないが、外部連携用に保持される",
     )
 
     @field_validator("negative_prompt")
