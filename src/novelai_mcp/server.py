@@ -1,6 +1,7 @@
 """NovelAI画像生成MCPサーバー"""
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -82,6 +83,8 @@ def _load_params(params_file: str) -> NovelAIParams:
         return load_params_from_file(params_file)
     except FileNotFoundError as e:
         raise ValueError(str(e)) from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSONの解析に失敗しました: {e}") from e
     except ValidationError as e:
         raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
 

@@ -63,6 +63,19 @@ class TestGenerateImage:
             await generate_image(params_file="/nonexistent/params.json")
 
     @pytest.mark.asyncio
+    async def test_params_file_invalid_json(self, tmp_path: Path) -> None:
+        """params_fileが不正なJSONの場合のエラー"""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        params_file = output_dir / "params.json"
+        params_file.write_text("not json", encoding="utf-8")
+
+        from novelai_mcp.server import generate_image
+
+        with pytest.raises(ValueError, match="JSONの解析に失敗しました"):
+            await generate_image(params_file=str(params_file))
+
+    @pytest.mark.asyncio
     async def test_no_args_raises_error(self) -> None:
         """params_fileが指定されていない場合のエラー"""
         from novelai_mcp.server import generate_image
