@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from novelai_mcp.types import CharacterParams, CleanupResult, GenerateImageResult, NovelAIParams
+from novelai_mcp.types import CleanupResult, GenerateImageResult
 
 _NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, missing fingers, extra digits"
 
@@ -21,26 +21,16 @@ def _valid_params_dict() -> dict[str, object]:
     }
 
 
-def _make_params(n_samples: int = 1) -> NovelAIParams:
-    return NovelAIParams(
-        description="テスト画像",
-        prompt="1girl, solo, garden",
-        negative_prompt=_NEGATIVE_PROMPT,
-        characters=[CharacterParams(prompt="blonde hair, blue eyes", negative_prompt="bad anatomy")],
-        n_samples=n_samples,
-    )
-
-
 class TestGenerateImage:
     """generate_image ツールのテスト"""
 
     @pytest.mark.asyncio
     async def test_generate_with_params_file(self, tmp_path: Path) -> None:
         """params_fileから画像生成できること（NovelAI APIはモック）"""
-        params_file = tmp_path / "params.json"
-        params_file.write_text(json.dumps(_valid_params_dict()), encoding="utf-8")
-
         output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        params_file = output_dir / "params.json"
+        params_file.write_text(json.dumps(_valid_params_dict()), encoding="utf-8")
 
         mock_image = MagicMock()
         mock_image.save = MagicMock()
@@ -60,41 +50,9 @@ class TestGenerateImage:
         assert isinstance(result, GenerateImageResult)
         assert result.count == 1
         assert len(result.image_paths) == 1
-        assert result.params_file.endswith(".json")
+        assert result.params_file == str(params_file)
         mock_client.image.generate.assert_called_once()
         mock_image.save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_generate_with_direct_args(self, tmp_path: Path) -> None:
-        """直接引数から画像生成できること"""
-        output_dir = tmp_path / "output"
-
-        mock_image = MagicMock()
-        mock_image.save = MagicMock()
-
-        mock_client = MagicMock()
-        mock_client.image.generate.return_value = [mock_image]
-
-        with (
-            patch("novelai_mcp.server._get_output_dir", return_value=output_dir),
-            patch("novelai_mcp.server.NovelAI", return_value=mock_client),
-            patch("novelai_mcp.server.DEFAULT_WAIT_SECONDS", 0),
-        ):
-            from novelai_mcp.server import generate_image
-
-            result = await generate_image(
-                description="テスト画像",
-                prompt="1girl, solo, garden",
-                negative_prompt=_NEGATIVE_PROMPT,
-                characters=[{"prompt": "blonde hair, blue eyes", "negative_prompt": "bad anatomy"}],
-                n_samples=1,
-            )
-
-        assert isinstance(result, GenerateImageResult)
-        assert result.count == 1
-        assert len(result.image_paths) == 1
-        assert result.params_file.endswith(".json")
-        mock_client.image.generate.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_params_file_not_found(self) -> None:
@@ -105,11 +63,24 @@ class TestGenerateImage:
             await generate_image(params_file="/nonexistent/params.json")
 
     @pytest.mark.asyncio
-    async def test_no_args_raises_error(self) -> None:
-        """params_fileも直接引数もない場合のエラー"""
+    async def test_params_file_invalid_json(self, tmp_path: Path) -> None:
+        """params_fileが不正なJSONの場合のエラー"""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        params_file = output_dir / "params.json"
+        params_file.write_text("not json", encoding="utf-8")
+
         from novelai_mcp.server import generate_image
 
-        with pytest.raises(ValueError, match="params_file または直接引数のいずれかを指定してください"):
+        with pytest.raises(ValueError, match="JSONの解析に失敗しました"):
+            await generate_image(params_file=str(params_file))
+
+    @pytest.mark.asyncio
+    async def test_no_args_raises_error(self) -> None:
+        """params_fileが指定されていない場合のエラー"""
+        from novelai_mcp.server import generate_image
+
+        with pytest.raises(TypeError):
             await generate_image()
 
 

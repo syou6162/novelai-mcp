@@ -21,6 +21,7 @@ from novelai_mcp.types import CleanupResult, GenerateImageResult, NovelAIParams
 
 logger = logging.getLogger(__name__)
 
+
 def _get_output_dir() -> Path:
     val = os.environ.get("NOVELAI_OUTPUT_DIR")
     if not val:
@@ -28,22 +29,10 @@ def _get_output_dir() -> Path:
         raise ValueError(msg)
     return Path(val)
 
+
 # レート制限対策
 _generation_lock = asyncio.Lock()
 DEFAULT_WAIT_SECONDS = 5.0
-
-_OVERRIDE_KEYS = (
-    "description",
-    "prompt",
-    "negative_prompt",
-    "characters",
-    "model",
-    "size",
-    "steps",
-    "scale",
-    "n_samples",
-    "reference_images",
-)
 
 mcp = FastMCP("novelai")
 
@@ -88,45 +77,20 @@ def _build_generation_params(params: NovelAIParams, seed: int) -> GenerateImageP
     return GenerateImageParams(**kwargs)
 
 
-def _collect_overrides(kwargs: dict[str, Any]) -> dict[str, Any]:
-    """None でないキーのみ抽出してオーバーライド辞書を作る"""
-    return {k: v for k, v in kwargs.items() if k in _OVERRIDE_KEYS and v is not None}
-
-
-def _resolve_params(params_file: str | None, kwargs: dict[str, Any]) -> NovelAIParams:
-    """params_file と直接引数から NovelAIParams を構築する"""
-    overrides = _collect_overrides(kwargs)
-
-    if params_file:
-        try:
-            params = load_params_from_file(params_file)
-        except FileNotFoundError as e:
-            raise ValueError(str(e)) from e
-        except json.JSONDecodeError as e:
-            raise ValueError(f"JSONの解析に失敗しました: {e}") from e
-        except ValidationError as e:
-            raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
-
-        if overrides:
-            merged = params.model_dump()
-            merged.update(overrides)
-            try:
-                return NovelAIParams.model_validate(merged)
-            except ValidationError as e:
-                raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
-        return params
-
-    if not overrides:
-        raise ValueError("params_file または直接引数のいずれかを指定してください")
-
+def _load_params(params_file: str) -> NovelAIParams:
+    """params_file から NovelAIParams を構築する"""
     try:
-        return NovelAIParams.model_validate(overrides)
+        return load_params_from_file(params_file)
+    except FileNotFoundError as e:
+        raise ValueError(str(e)) from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSONの解析に失敗しました: {e}") from e
     except ValidationError as e:
         raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
 
 
-async def _run_generation(params: NovelAIParams) -> tuple[list[str], str]:
-    """NovelAI API を呼び出して画像を生成し、(画像パスリスト, paramsファイルパス) を返す"""
+async def _run_generation(params: NovelAIParams) -> list[str]:
+    """NovelAI API を呼び出して画像を生成し、保存パスのリストを返す"""
     output_dir = _get_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -153,54 +117,25 @@ async def _run_generation(params: NovelAIParams) -> tuple[list[str], str]:
         generated_paths.append(str(output_path))
         logger.info(f"画像保存: {output_path}")
 
-    # パラメータJSONも保存
-    params_output = output_dir / f"params_{timestamp}.json"
-    params_output.write_text(params.model_dump_json(indent=2), encoding="utf-8")
-
-    return generated_paths, str(params_output)
+    return generated_paths
 
 
 @mcp.tool()
-async def generate_image(  # noqa: PLR0913
-    params_file: str | None = None,
-    description: str | None = None,
-    prompt: str | None = None,
-    negative_prompt: str | None = None,
-    characters: list[dict[str, Any]] | None = None,
-    model: str | None = None,
-    size: str | None = None,
-    steps: int | None = None,
-    scale: float | None = None,
-    n_samples: int | None = None,
-    reference_images: list[dict[str, Any]] | None = None,
-) -> GenerateImageResult:
+async def generate_image(params_file: str) -> GenerateImageResult:
     """NovelAIで画像を生成する。
-
-    params_file（JSONファイルパス）または直接引数でパラメータを指定する。
-    両方指定した場合はファイルをベースに直接引数で上書きする（部分修正に使える）。
 
     Args:
         params_file: パラメータJSONファイルのパス
-        description: 画像の内容を日本語で説明（3000字以内）
-        prompt: 背景・構図・全体の雰囲気
-        negative_prompt: 背景・全体で避けたい要素（必須ワードを含める）
-        characters: 人物設定のリスト
-        model: 使用モデル（デフォルト: nai-diffusion-4-5-full）
-        size: 画像サイズ（デフォルト: portrait）
-        steps: ステップ数（1-50、デフォルト: 28）
-        scale: スケール（1.0-10.0、デフォルト: 5.0）
-        n_samples: 生成枚数（1-4、デフォルト: 2）
-        reference_images: 参照画像設定（Vibe Transfer）
 
     Returns:
         GenerateImageResult: 生成結果（画像パス・パラメータファイル・枚数）
     """
     async with _generation_lock:
-        params = _resolve_params(params_file, locals())
-        generated_paths, params_file_path = await _run_generation(params)
+        params = _load_params(params_file)
+        generated_paths = await _run_generation(params)
         return GenerateImageResult(
             image_paths=generated_paths,
-            params_file=params_file_path,
+            params_file=params_file,
             count=len(generated_paths),
         )
 

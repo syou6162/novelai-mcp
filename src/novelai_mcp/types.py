@@ -145,7 +145,7 @@ class GenerateImageResult(BaseModel):
     """generate_image ツールの結果"""
 
     image_paths: list[str] = Field(description="生成された画像ファイルパスのリスト")
-    params_file: str = Field(description="保存されたパラメータJSONファイルのパス")
+    params_file: str = Field(description="入力されたパラメータJSONファイルのパス")
     count: int = Field(description="生成された画像の枚数")
 
 
