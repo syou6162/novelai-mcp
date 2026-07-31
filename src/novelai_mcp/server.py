@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from novelai import NovelAI
 from novelai.types import Character, ControlNet, ControlNetImage, GenerateImageParams
 from pydantic import ValidationError
@@ -34,7 +34,7 @@ def _get_output_dir() -> Path:
 _generation_lock = asyncio.Lock()
 DEFAULT_WAIT_SECONDS = 5.0
 
-mcp = FastMCP("novelai")
+mcp = MCPServer("novelai")
 
 
 def _build_generation_params(params: NovelAIParams, seed: int) -> GenerateImageParams:
