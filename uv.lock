@@ -370,7 +370,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = "==2.0.0" },
-    { name = "novelai-sdk", specifier = "==0.11.0" },
+    { name = "novelai-sdk", specifier = "==0.12.0" },
     { name = "pydantic", specifier = "==2.13.4" },
 ]
 
@@ -384,7 +384,7 @@ dev = [
 
 [[package]]
 name = "novelai-sdk"
-version = "0.11.0"
+version = "0.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -394,9 +394,9 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/4a/a2c53580c65ae4ca181fc4772b0297681195c35db7cd735d177f369ad3e4/novelai_sdk-0.11.0.tar.gz", hash = "sha256:131b887b044b2becd358dbd0a3eec2fa85a18fd144fc87188d0679c0341cb654", size = 1859963, upload-time = "2026-08-21T14:45:42.852Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/af/13322424e842596e7409e1ea92bd2101599d7dd14c1345d7bbc95229ab96/novelai_sdk-0.12.0.tar.gz", hash = "sha256:a9a86b7b3fcf3934ee97bd97f812b7e958916a6bd3d7290669d6af0ee13d7a15", size = 1860690, upload-time = "2026-08-21T15:10:18.145Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/ce/ad20a735059915a0be30033e3f487aff15d4735e8024e0fc7eadf66f60a8/novelai_sdk-0.11.0-py3-none-any.whl", hash = "sha256:76b5b8fb53d3f7e580c01856ecfea5e4ba819ab7c798006a8886a04977d10fd9", size = 50380, upload-time = "2026-08-21T14:45:41.456Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/41/ccfde754056a92a8a67932d4e8432a037309b492d12828db6946b52547ca/novelai_sdk-0.12.0-py3-none-any.whl", hash = "sha256:c853ad8ca887df66c377c9d0b64e77bbd61716933900aecd520ddf73fd96ffaf", size = 50658, upload-time = "2026-08-21T15:10:16.442Z" },
 ]
 
 [[package]]
