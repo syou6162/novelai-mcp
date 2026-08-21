@@ -5,6 +5,7 @@ NovelAI 画像生成のための汎用 stdio MCP サーバー。
 ## 機能
 
 - **generate_image**: NovelAI API で画像を生成し、ローカルに保存。パラメータは JSON ファイルで指定
+- **generate_image_v5**: NovelAI Diffusion V5専用。日本語自然文・テキスト描画・透過画像に対応（Vibe Transfer/ControlNetは非対応）
 - **cleanup_old_image_files**: 生成した古い画像・JSON ファイルを保持期間ベースで削除
 
 ## 環境変数

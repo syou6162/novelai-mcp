@@ -16,8 +16,8 @@ from novelai.types import Character, ControlNet, ControlNetImage, GenerateImageP
 from pydantic import ValidationError
 
 from novelai_mcp.cleanup import cleanup_old_files
-from novelai_mcp.helpers import load_params_from_file
-from novelai_mcp.types import CleanupResult, GenerateImageResult, NovelAIParams
+from novelai_mcp.helpers import load_params_from_file, load_v5_params_from_file
+from novelai_mcp.types import CleanupResult, GenerateImageResult, NovelAIParams, NovelAIV5Params
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +37,8 @@ DEFAULT_WAIT_SECONDS = 5.0
 mcp = MCPServer("novelai")
 
 
-def _build_generation_params(params: NovelAIParams, seed: int) -> GenerateImageParams:
-    """NovelAIParamsからGenerateImageParamsを構築"""
+def _build_generation_params(params: NovelAIParams | NovelAIV5Params, seed: int) -> GenerateImageParams:
+    """MCPパラメータからGenerateImageParamsを構築"""
     characters = [
         Character(
             prompt=c.prompt,
@@ -50,7 +50,7 @@ def _build_generation_params(params: NovelAIParams, seed: int) -> GenerateImageP
     ]
 
     controlnet = None
-    if params.reference_images:
+    if isinstance(params, NovelAIParams) and params.reference_images:
         controlnet_images = [
             ControlNetImage(
                 image=Path(ref.image_path),
@@ -73,6 +73,9 @@ def _build_generation_params(params: NovelAIParams, seed: int) -> GenerateImageP
         "characters": characters,
         "controlnet": controlnet,
     }
+    if isinstance(params, NovelAIV5Params):
+        kwargs["straight_alpha"] = params.straight_alpha
+        kwargs["tag_hint_transparent_background"] = params.tag_hint_transparent_background
 
     return GenerateImageParams(**kwargs)
 
@@ -89,7 +92,19 @@ def _load_params(params_file: str) -> NovelAIParams:
         raise ValueError(f"パラメータのバリデーションに失敗しました: {e}") from e
 
 
-async def _run_generation(params: NovelAIParams) -> list[str]:
+def _load_v5_params(params_file: str) -> NovelAIV5Params:
+    """params_file からNovelAI Diffusion V5専用パラメータを構築する"""
+    try:
+        return load_v5_params_from_file(params_file)
+    except FileNotFoundError as e:
+        raise ValueError(str(e)) from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSONの解析に失敗しました: {e}") from e
+    except ValidationError as e:
+        raise ValueError(f"V5パラメータのバリデーションに失敗しました: {e}") from e
+
+
+async def _run_generation(params: NovelAIParams | NovelAIV5Params) -> list[str]:
     """NovelAI API を呼び出して画像を生成し、保存パスのリストを返す"""
     output_dir = _get_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -132,6 +147,30 @@ async def generate_image(params_file: str) -> GenerateImageResult:
     """
     async with _generation_lock:
         params = _load_params(params_file)
+        generated_paths = await _run_generation(params)
+        return GenerateImageResult(
+            image_paths=generated_paths,
+            params_file=params_file,
+            count=len(generated_paths),
+        )
+
+
+@mcp.tool()
+async def generate_image_v5(params_file: str) -> GenerateImageResult:
+    """NovelAI Diffusion V5で画像を生成する。
+
+    V5は日本語の自然文や「」で囲んだテキスト描画を得意とし、
+    Vibe Transfer/ControlNetには対応していません。透過画像を生成する場合は
+    straight_alphaとtag_hint_transparent_backgroundを両方Trueにしてください。
+
+    Args:
+        params_file: V5専用パラメータJSONファイルのパス
+
+    Returns:
+        GenerateImageResult: 生成結果（画像パス・パラメータファイル・枚数）
+    """
+    async with _generation_lock:
+        params = _load_v5_params(params_file)
         generated_paths = await _run_generation(params)
         return GenerateImageResult(
             image_paths=generated_paths,

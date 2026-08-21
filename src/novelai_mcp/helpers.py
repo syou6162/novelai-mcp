@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from novelai_mcp.types import NovelAIParams
+from novelai_mcp.types import NovelAIParams, NovelAIV5Params
 
 
 def load_params_from_file(params_file: str) -> NovelAIParams:
@@ -28,3 +28,15 @@ def load_params_from_file(params_file: str) -> NovelAIParams:
         data = json.load(f)
 
     return NovelAIParams.model_validate(data)
+
+
+def load_v5_params_from_file(params_file: str) -> NovelAIV5Params:
+    """JSONファイルからV5専用パラメータを読み込み、バリデーションして返す"""
+    path = Path(params_file)
+    if not path.exists():
+        raise FileNotFoundError(f"パラメータファイルが見つかりません: {params_file}")
+
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    return NovelAIV5Params.model_validate(data)

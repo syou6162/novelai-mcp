@@ -7,6 +7,7 @@ from novelai_mcp.types import (
     REQUIRED_NEGATIVE_WORDS,
     CharacterParams,
     NovelAIParams,
+    NovelAIV5Params,
     ReferenceImageParams,
 )
 
@@ -269,4 +270,68 @@ class TestNovelAIParams:
                 prompt="1girl, solo",
                 negative_prompt=_NEGATIVE_PROMPT,
                 characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+            )
+
+
+class TestNovelAIV5Params:
+    """NovelAIV5Params のテスト"""
+
+    def test_valid_params_and_defaults(self) -> None:
+        """V5パラメータがデフォルト値で生成できる"""
+        params = NovelAIV5Params(
+            description="日本語の自然文と「立ち絵」のテスト",
+            prompt="庭園に立つ人物",
+            negative_prompt=_NEGATIVE_PROMPT,
+            characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+        )
+        assert params.model == "nai-diffusion-5-full"
+        assert params.straight_alpha is False
+        assert params.tag_hint_transparent_background is False
+        assert params.meta is None
+
+    @pytest.mark.parametrize("model", ["nai-diffusion-5-full", "nai-diffusion-5-curated"])
+    def test_v5_models_are_accepted(self, model: str) -> None:
+        """V5モデルだけを受け付ける"""
+        params = NovelAIV5Params(
+            description="テスト",
+            prompt="庭園",
+            negative_prompt=_NEGATIVE_PROMPT,
+            characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+            model=model,  # type: ignore[arg-type]
+        )
+        assert params.model == model
+
+    def test_non_v5_model_is_rejected(self) -> None:
+        """V5以外のモデルは拒否する"""
+        with pytest.raises(ValidationError, match="model"):
+            NovelAIV5Params(
+                description="テスト",
+                prompt="庭園",
+                negative_prompt=_NEGATIVE_PROMPT,
+                characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+                model="nai-diffusion-4-5-full",  # type: ignore[arg-type]
+            )
+
+    def test_transparent_flags_are_accepted(self) -> None:
+        """透過画像用フラグを受け付ける"""
+        params = NovelAIV5Params(
+            description="透過立ち絵",
+            prompt="透明な背景の立ち絵",
+            negative_prompt=_NEGATIVE_PROMPT,
+            characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+            straight_alpha=True,
+            tag_hint_transparent_background=True,
+        )
+        assert params.straight_alpha is True
+        assert params.tag_hint_transparent_background is True
+
+    def test_reference_images_are_rejected(self) -> None:
+        """Vibe Transfer用の参照画像はV5で拒否する"""
+        with pytest.raises(ValidationError, match="extra"):
+            NovelAIV5Params(
+                description="テスト",
+                prompt="庭園",
+                negative_prompt=_NEGATIVE_PROMPT,
+                characters=[CharacterParams(prompt="blonde hair", negative_prompt="bad anatomy")],
+                reference_images=[ReferenceImageParams(image_path="/path/to/ref.png")],  # type: ignore[call-arg]
             )

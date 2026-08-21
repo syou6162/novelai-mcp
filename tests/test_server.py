@@ -21,6 +21,20 @@ def _valid_params_dict() -> dict[str, object]:
     }
 
 
+def _valid_v5_params_dict() -> dict[str, object]:
+    return {
+        "description": "透過立ち絵「こんにちは」",
+        "prompt": "日本語の自然文で描かれた庭園",
+        "negative_prompt": _NEGATIVE_PROMPT,
+        "characters": [{"prompt": "blonde hair, blue eyes", "negative_prompt": "bad anatomy", "position": [0.3, 0.7]}],
+        "model": "nai-diffusion-5-full",
+        "straight_alpha": True,
+        "tag_hint_transparent_background": True,
+        "n_samples": 1,
+        "meta": {"source": "test"},
+    }
+
+
 class TestGenerateImage:
     """generate_image ツールのテスト"""
 
@@ -82,6 +96,53 @@ class TestGenerateImage:
 
         with pytest.raises(TypeError):
             await generate_image()
+
+
+class TestGenerateImageV5:
+    """generate_image_v5 ツールのテスト"""
+
+    @pytest.mark.asyncio
+    async def test_generate_v5_wires_transparency_flags_and_preserves_params_file(self, tmp_path: Path) -> None:
+        """V5の透過フラグをSDKへ渡し、入力JSONを保持する"""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        params_file = output_dir / "v5_params.json"
+        params_data = _valid_v5_params_dict()
+        params_file.write_text(json.dumps(params_data), encoding="utf-8")
+
+        mock_image = MagicMock()
+        mock_client = MagicMock()
+        mock_client.image.generate.return_value = [mock_image]
+
+        with (
+            patch("novelai_mcp.server._get_output_dir", return_value=output_dir),
+            patch("novelai_mcp.server.NovelAI", return_value=mock_client),
+            patch("novelai_mcp.server.DEFAULT_WAIT_SECONDS", 0),
+        ):
+            from novelai_mcp.server import generate_image_v5
+
+            result = await generate_image_v5(params_file=str(params_file))
+
+        assert isinstance(result, GenerateImageResult)
+        assert result.count == 1
+        generated_params = mock_client.image.generate.call_args.args[0]
+        assert generated_params.model == "nai-diffusion-5-full"
+        assert generated_params.straight_alpha is True
+        assert generated_params.tag_hint_transparent_background is True
+        assert json.loads(params_file.read_text(encoding="utf-8")) == params_data
+
+    @pytest.mark.asyncio
+    async def test_non_v5_params_are_rejected(self, tmp_path: Path) -> None:
+        """V5ツールでV5以外のモデルを拒否する"""
+        params_file = tmp_path / "params.json"
+        data = _valid_v5_params_dict()
+        data["model"] = "nai-diffusion-4-5-full"
+        params_file.write_text(json.dumps(data), encoding="utf-8")
+
+        from novelai_mcp.server import generate_image_v5
+
+        with pytest.raises(ValueError, match="V5パラメータのバリデーション"):
+            await generate_image_v5(params_file=str(params_file))
 
 
 class TestCleanupOldImageFiles:

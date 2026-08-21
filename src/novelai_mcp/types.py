@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -124,6 +124,68 @@ class NovelAIParams(BaseModel):
     )
 
     # メタデータ（外部システムが任意のデータを載せられる）
+    meta: dict[str, Any] | None = Field(
+        default=None,
+        description="任意のメタデータ。画像生成には使用されないが、外部連携用に保持される",
+    )
+
+    @field_validator("negative_prompt")
+    @classmethod
+    def check_required_negative_words(cls, v: str) -> str:
+        """必須ネガティブワードが含まれているかチェック"""
+        missing = [w for w in REQUIRED_NEGATIVE_WORDS if w.lower() not in v.lower()]
+        if missing:
+            raise ValueError(f"必須ワードが不足しています: {missing}")
+        return v
+
+    model_config = {"extra": "forbid"}
+
+
+class NovelAIV5Params(BaseModel):
+    """NovelAI Diffusion V5専用の画像生成パラメータ
+
+    V5は日本語の自然文や「」で囲んだテキスト描画を得意とし、
+    Vibe Transfer/ControlNetには対応していない。charactersのpositionで
+    キャラクターを自由な座標に配置できる。
+
+    ## プロンプトの使い分け
+
+    - prompt/negative_prompt: 背景・構図・全体の雰囲気（人物の特徴は入れない）
+    - characters[].prompt/negative_prompt: 人物の特徴（髪色、服装など）
+    """
+
+    description: str = Field(
+        min_length=1,
+        max_length=3000,
+        description="画像の内容を日本語で説明（3000字以内）。V5は日本語の自然文や「」で囲んだテキスト描画が得意です",
+    )
+    prompt: str = Field(
+        min_length=1,
+        description="背景・構図・全体の雰囲気。V5は日本語の自然文や「」で囲んだテキスト描画に対応",
+    )
+    negative_prompt: str = Field(
+        description="背景・全体で避けたい要素（必須ワードを含める）。人物の特徴はcharactersに記述",
+    )
+    characters: list[CharacterParams] = Field(
+        min_length=1,
+        description="人物設定。人物の特徴・ネガティブプロンプトはここに記述。positionで自由な座標に配置できます",
+    )
+    model: Literal["nai-diffusion-5-full", "nai-diffusion-5-curated"] = Field(
+        default="nai-diffusion-5-full",
+        description="V5モデル。fullまたはcuratedを指定",
+    )
+    size: str = "portrait"
+    steps: int = Field(default=28, ge=1, le=50)
+    scale: float = Field(default=5.0, ge=1.0, le=10.0)
+    n_samples: int = Field(default=2, ge=1, le=4, description="生成する画像の枚数（1-4枚）")
+    straight_alpha: bool = Field(
+        default=False,
+        description="透過立ち絵などを生成する場合にTrue。tag_hint_transparent_backgroundもTrueにしてください",
+    )
+    tag_hint_transparent_background: bool = Field(
+        default=False,
+        description="透過立ち絵などを生成する場合にTrue。straight_alphaもTrueにしてください",
+    )
     meta: dict[str, Any] | None = Field(
         default=None,
         description="任意のメタデータ。画像生成には使用されないが、外部連携用に保持される",
